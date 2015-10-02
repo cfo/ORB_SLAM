@@ -196,10 +196,15 @@ void Tracking::GrabImage(const sensor_msgs::ImageConstPtr& msg)
         cv_ptr->image.copyTo(im);
     }
 
+    ProcessImage(im, cv_ptr->header.stamp.toSec());
+}
+
+void Tracking::ProcessImage(const cv::Mat& im, const double timestamp_seconds)
+{
     if(mState==WORKING || mState==LOST)
-        mCurrentFrame = Frame(im,cv_ptr->header.stamp.toSec(),mpORBextractor,mpORBVocabulary,mK,mDistCoef);
+        mCurrentFrame = Frame(im, timestamp_seconds, mpORBextractor, mpORBVocabulary, mK, mDistCoef);
     else
-        mCurrentFrame = Frame(im,cv_ptr->header.stamp.toSec(),mpIniORBextractor,mpORBVocabulary,mK,mDistCoef);
+        mCurrentFrame = Frame(im, timestamp_seconds, mpIniORBextractor, mpORBVocabulary, mK, mDistCoef);
 
     // Depending on the state of the Tracker we perform different tasks
 

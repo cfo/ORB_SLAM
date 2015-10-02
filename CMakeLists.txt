@@ -27,7 +27,7 @@ ${EIGEN3_INCLUDE_DIR}
 /usr/include/suitesparse
 )
 
-rosbuild_add_executable(${PROJECT_NAME}
+rosbuild_add_library(libORB
 src/main.cc
 src/Tracking.cc
 src/LocalMapping.cc
@@ -48,9 +48,8 @@ src/Sim3Solver.cc
 src/Initializer.cc
 )
 rosbuild_add_boost_directories()
-rosbuild_link_boost(${PROJECT_NAME} thread)
-
-target_link_libraries(${PROJECT_NAME}
+rosbuild_link_boost(libORB thread)
+target_link_libraries(libORB
 ${OpenCV_LIBS}
 ${EIGEN3_LIBS}
 #cholmod
@@ -65,3 +64,8 @@ ${PROJECT_SOURCE_DIR}/Thirdparty/g2o/lib/libg2o_types_sim3.so
 ${PROJECT_SOURCE_DIR}/Thirdparty/g2o/lib/libg2o_types_slam3d.so
 )
 
+rosbuild_add_executable(${PROJECT_NAME} src/main.cc)
+target_link_libraries(${PROJECT_NAME} libORB)
+
+rosbuild_add_executable(orb_benchmark src/main_benchmark.cc)
+target_link_libraries(orb_benchmark libORB)

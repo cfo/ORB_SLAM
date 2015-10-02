@@ -70,6 +70,8 @@ public:
     // This is the main function of the Tracking Thread
     void Run();
 
+    void ProcessImage(const cv::Mat& im, const double timestamp_seconds);
+
     void ForceRelocalisation();
 
     eTrackingState mState;
@@ -91,6 +93,7 @@ public:
 
 protected:
     void GrabImage(const sensor_msgs::ImageConstPtr& msg);
+
 
     void FirstInitialization();
     void Initialize();
