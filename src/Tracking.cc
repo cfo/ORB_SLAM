@@ -43,17 +43,31 @@ namespace ORB_SLAM
 {
 
 
-Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPublisher *pMapPublisher, Map *pMap, string strSettingPath):
-    mState(NO_IMAGES_YET), mpORBVocabulary(pVoc), mpFramePublisher(pFramePublisher), mpMapPublisher(pMapPublisher), mpMap(pMap),
-    mnLastRelocFrameId(0), mbPublisherStopped(false), mbReseting(false), mbForceRelocalisation(false), mbMotionModel(false)
+Tracking::Tracking(
+    ORBVocabulary* pVoc,
+    FramePublisher *pFramePublisher,
+    MapPublisher *pMapPublisher,
+    Map *pMap,
+    const string& camSettingsFilename,
+    const string& orbSettingsFilename)
+  : mState(NO_IMAGES_YET)
+  , mpORBVocabulary(pVoc)
+  , mpFramePublisher(pFramePublisher)
+  , mpMapPublisher(pMapPublisher)
+  , mpMap(pMap)
+  , mnLastRelocFrameId(0)
+  , mbPublisherStopped(false)
+  , mbReseting(false)
+  , mbForceRelocalisation(false)
+  , mbMotionModel(false)
 {
     // Load camera parameters from settings file
 
-    cv::FileStorage fSettings(strSettingPath, cv::FileStorage::READ);
-    float fx = fSettings["Camera.fx"];
-    float fy = fSettings["Camera.fy"];
-    float cx = fSettings["Camera.cx"];
-    float cy = fSettings["Camera.cy"];
+    cv::FileStorage camSettings(camSettingsFilename, cv::FileStorage::READ);
+    float fx = camSettings["Camera.fx"];
+    float fy = camSettings["Camera.fy"];
+    float cx = camSettings["Camera.cx"];
+    float cy = camSettings["Camera.cy"];
 
     cv::Mat K = cv::Mat::eye(3,3,CV_32F);
     K.at<float>(0,0) = fx;
@@ -63,20 +77,19 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
     K.copyTo(mK);
 
     cv::Mat DistCoef(4,1,CV_32F);
-    DistCoef.at<float>(0) = fSettings["Camera.k1"];
-    DistCoef.at<float>(1) = fSettings["Camera.k2"];
-    DistCoef.at<float>(2) = fSettings["Camera.p1"];
-    DistCoef.at<float>(3) = fSettings["Camera.p2"];
+    DistCoef.at<float>(0) = camSettings["Camera.k1"];
+    DistCoef.at<float>(1) = camSettings["Camera.k2"];
+    DistCoef.at<float>(2) = camSettings["Camera.p1"];
+    DistCoef.at<float>(3) = camSettings["Camera.p2"];
     DistCoef.copyTo(mDistCoef);
 
-    float fps = fSettings["Camera.fps"];
+    float fps = camSettings["Camera.fps"];
     if(fps==0)
         fps=30;
 
     // Max/Min Frames to insert keyframes and to check relocalisation
     mMinFrames = 0;
     mMaxFrames = 18*fps/30;
-
 
     cout << "Camera Parameters: " << endl;
     cout << "- fx: " << fx << endl;
@@ -89,8 +102,7 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
     cout << "- p2: " << DistCoef.at<float>(3) << endl;
     cout << "- fps: " << fps << endl;
 
-
-    int nRGB = fSettings["Camera.RGB"];
+    int nRGB = camSettings["Camera.RGB"];
     mbRGB = nRGB;
 
     if(mbRGB)
@@ -99,16 +111,16 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
         cout << "- color order: BGR (ignored if grayscale)" << endl;
 
     // Load ORB parameters
-
-    int nFeatures = fSettings["ORBextractor.nFeatures"];
-    float fScaleFactor = fSettings["ORBextractor.scaleFactor"];
-    int nLevels = fSettings["ORBextractor.nLevels"];
-    int fastTh = fSettings["ORBextractor.fastTh"];    
-    int Score = fSettings["ORBextractor.nScoreType"];
+    cv::FileStorage orbSettings(orbSettingsFilename, cv::FileStorage::READ);
+    int nFeatures = orbSettings["ORBextractor.nFeatures"];
+    float fScaleFactor = orbSettings["ORBextractor.scaleFactor"];
+    int nLevels = orbSettings["ORBextractor.nLevels"];
+    int fastTh = orbSettings["ORBextractor.fastTh"];
+    int Score = orbSettings["ORBextractor.nScoreType"];
 
     assert(Score==1 || Score==0);
 
-    mpORBextractor = new ORBextractor(nFeatures,fScaleFactor,nLevels,Score,fastTh);
+    mpORBextractor = new ORBextractor(nFeatures, fScaleFactor, nLevels, Score, fastTh);
 
     cout << endl  << "ORB Extractor Parameters: " << endl;
     cout << "- Number of Features: " << nFeatures << endl;
@@ -125,7 +137,7 @@ Tracking::Tracking(ORBVocabulary* pVoc, FramePublisher *pFramePublisher, MapPubl
     // Initialization uses only points from the finest scale level
     mpIniORBextractor = new ORBextractor(nFeatures*2,1.2,8,Score,fastTh);  
 
-    int nMotion = fSettings["UseMotionModel"];
+    int nMotion = camSettings["UseMotionModel"];
     mbMotionModel = nMotion;
 
     if(mbMotionModel)

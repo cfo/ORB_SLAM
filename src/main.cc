@@ -119,7 +119,7 @@ int main(int argc, char **argv)
     ORB_SLAM::MapPublisher MapPub(&World);
 
     //Initialize the Tracking Thread and launch
-    ORB_SLAM::Tracking Tracker(&Vocabulary, &FramePub, &MapPub, &World, strSettingsFile);
+    ORB_SLAM::Tracking Tracker(&Vocabulary, &FramePub, &MapPub, &World, strSettingsFile, strSettingsFile);
     boost::thread trackingThread(&ORB_SLAM::Tracking::Run,&Tracker);
 
     Tracker.SetKeyFrameDatabase(&Database);

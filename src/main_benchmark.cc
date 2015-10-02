@@ -51,9 +51,18 @@ int main(int argc, char **argv)
             "This is free software, and you are welcome to redistribute it" << endl <<
             "under certain conditions. See LICENSE.txt." << endl;
 
-    if(argc != 3)
+    // -------------------------------------------------------------------------
+    // Load Settings and Camera
+    std::string dataset_dir = ros::package::getPath("rpg_datasets");
+    std::string dataset_name, trace_dir;
+    ros::param::get("~dataset_name", dataset_name);
+    ros::param::get("~trace_dir", trace_dir);
+    std::string camSettingsFile = dataset_dir + "/" + dataset_name + "/orb_calib.yaml";
+    std::string orbSettingsFile = ros::package::getPath("ORB_SLAM")+"/Data/Settings.yaml";
+    cv::FileStorage orbSettings(orbSettingsFile.c_str(), cv::FileStorage::READ);
+    if(!orbSettings.isOpened())
     {
-        cerr << endl << "Usage: rosrun ORB_SLAM ORB_SLAM path_to_vocabulary path_to_settings (absolute or relative to package directory)" << endl;
+        ROS_ERROR("Wrong path to settings. Path must be absolut or relative to ORB_SLAM package directory.");
         ros::shutdown();
         return 1;
     }
@@ -61,24 +70,13 @@ int main(int argc, char **argv)
     // -------------------------------------------------------------------------
     // Setup ORB SLAM
 
-    // Load Settings and Check
-    string strSettingsFile = ros::package::getPath("ORB_SLAM")+"/"+argv[2];
-
-    cv::FileStorage fsSettings(strSettingsFile.c_str(), cv::FileStorage::READ);
-    if(!fsSettings.isOpened())
-    {
-        ROS_ERROR("Wrong path to settings. Path must be absolut or relative to ORB_SLAM package directory.");
-        ros::shutdown();
-        return 1;
-    }
-
     // Create Frame Publisher for image_view
     ORB_SLAM::FramePublisher FramePub;
 
     // New version to load vocabulary from text file "Data/ORBvoc.txt". 
     // If you have an own .yml vocabulary, use the function
     // saveToTextFile in Thirdparty/DBoW2/DBoW2/TemplatedVocabulary.h
-    string strVocFile = ros::package::getPath("ORB_SLAM")+"/"+argv[1];
+    string strVocFile = ros::package::getPath("ORB_SLAM") + "/Data/ORBvoc.txt";
     cout << endl << "Loading ORB Vocabulary. This could take a while." << endl;
     
     ORB_SLAM::ORBVocabulary Vocabulary;
@@ -106,7 +104,8 @@ int main(int argc, char **argv)
     ORB_SLAM::MapPublisher MapPub(&World);
 
     // Initialize the Tracking Thread and launch
-    ORB_SLAM::Tracking Tracker(&Vocabulary, &FramePub, &MapPub, &World, strSettingsFile);
+    ORB_SLAM::Tracking Tracker(
+          &Vocabulary, &FramePub, &MapPub, &World, camSettingsFile, orbSettingsFile);
     // boost::thread trackingThread(&ORB_SLAM::Tracking::Run,&Tracker);
     Tracker.SetKeyFrameDatabase(&Database);
 
@@ -127,17 +126,13 @@ int main(int argc, char **argv)
     LoopCloser.SetLocalMapper(&LocalMapper);
 
     //This "main" thread will show the current processed frame and publish the map
-    float fps = fsSettings["Camera.fps"];
+    float fps = orbSettings["Camera.fps"];
     if(fps==0)
       fps=30;
 
     //--------------------------------------------------------------------------
     // Load dataset
 
-    std::string dataset_dir = ros::package::getPath("rpg_datasets");
-    std::string dataset_name, trace_dir;
-    ros::param::get("~dataset_name", dataset_name);
-    ros::param::get("~trace_dir", trace_dir);
     std::string img_filenames = dataset_dir + "/" + dataset_name + "/data/images.txt";
     std::ifstream img_fs(img_filenames.c_str());
     if(!img_fs.is_open())
